@@ -28,7 +28,7 @@ int send(void * self, local_id dst, const Message * msg){
 int send_multicast(void * self, const Message * msg){
     for (int i = 0; i <= X; i++){
         if (i != cur_pid){
-            send(&((fd_pair*)self)[i], i, msg);
+            send(((fd_pair**)self)[cur_pid], i, msg);
         }
     }
     return 0;
@@ -47,8 +47,8 @@ void create_log_files(){
 }
 
 void close_log_files(){
-    fclose(events_log_file);
-    fclose(pipes_log_file);
+    
+    
 }
 
 fd_pair** create_pipes(int N){
@@ -100,12 +100,13 @@ void child_task(fd_pair** pipes, int pid, int N){
 
 
     free(msg);
+    fclose(events_log_file);
 }
 
 void root_task(fd_pair** pipes, int X){
 
     while(wait(NULL) > 0);
-    close_log_files();
+    fclose(events_log_file);
 }
 
 int main(int argc, char** argv) {
@@ -116,6 +117,7 @@ int main(int argc, char** argv) {
             create_log_files();
 
             fd_pair** pipes = create_pipes(X+1);
+            fclose(pipes_log_file);
             for (int i = 1; i <= X; i++){
                 if (fork() == 0){
                     cur_pid = i;
