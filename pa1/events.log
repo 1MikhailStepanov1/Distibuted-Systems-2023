@@ -1,5 +1,212 @@
-Process 1 (pid 65517, parent 65516) has STARTED
-Process 2 (pid 65518, parent 65516) has STARTED
-Process 3 (pid 65519, parent 65516) has STARTED
-Process 4 (pid 65520, parent 65516) has STARTED
-Process 5 (pid 65521, parent 65516) has STARTED
+Process 1 (pid 76008, parent 76007) has STARTED
+Process 1 received all STARTED messages
+Process 1 has DONE its work
+Process 1 received all DONE messages
+Process 2 (pid 76009, parent 76007) has STARTED
+Process 2 received all STARTED messages
+Process 2 has DONE its work
+Process 2 received all DONE messages
+Process 3 (pid 76010, parent 76007) has STARTED
+Process 3 received all STARTED messages
+Process 3 has DONE its work
+Process 3 received all DONE messages
+Process 4 (pid 76011, parent 76007) has STARTED
+Process 4 received all STARTED messages
+Process 4 has DONE its work
+Process 4 received all DONE messages
+Process 5 (pid 76012, parent 76007) has STARTED
+Process 5 received all STARTED messages
+Process 5 has DONE its work
+Process 5 received all DONE messages
+Process 1 (pid 76186, parent 76185) has STARTED
+Process 1 received all STARTED messages
+Process 1 has DONE its work
+Process 1 received all DONE messages
+Process 2 (pid 76187, parent 76185) has STARTED
+Process 2 received all STARTED messages
+Process 2 has DONE its work
+Process 2 received all DONE messages
+Process 3 (pid 76188, parent 76185) has STARTED
+Process 3 received all STARTED messages
+Process 3 has DONE its work
+Process 3 received all DONE messages
+Process 5 (pid 76190, parent 76185) has STARTED
+Process 5 received all STARTED messages
+Process 5 has DONE its work
+Process 5 received all DONE messages
+Process 4 (pid 76189, parent 76185) has STARTED
+Process 4 received all STARTED messages
+Process 4 has DONE its work
+Process 4 received all DONE messages
+Process 3 (pid 76318, parent 76315) has STARTED
+Process 3 received all STARTED messages
+Process 3 has DONE its work
+Process 3 received all DONE messages
+Process 1 (pid 76316, parent 76315) has STARTED
+Process 1 received all STARTED messages
+Process 1 has DONE its work
+Process 1 received all DONE messages
+Process 5 (pid 76320, parent 76315) has STARTED
+Process 5 received all STARTED messages
+Process 5 has DONE its work
+Process 5 received all DONE messages
+Process 2 (pid 76317, parent 76315) has STARTED
+Process 2 received all STARTED messages
+Process 2 has DONE its work
+Process 2 received all DONE messages
+Process 4 (pid 76319, parent 76315) has STARTED
+Process 4 received all STARTED messages
+Process 4 has DONE its work
+Process 4 received all DONE messages
+Process 1 (pid 76422, parent 76421) has STARTED
+Process 1 received all STARTED messages
+Process 1 has DONE its work
+Process 1 received all DONE messages
+Process 2 (pid 76423, parent 76421) has STARTED
+Process 2 received all STARTED messages
+Process 2 has DONE its work
+Process 2 received all DONE messages
+Process 3 (pid 76424, parent 76421) has STARTED
+Process 3 received all STARTED messages
+Process 3 has DONE its work
+Process 3 received all DONE messages
+Process 2 (pid 76592, parent 76590) has STARTED
+Process 2 received all STARTED messages
+Process 2 has DONE its work
+Process 2 received all DONE messages
+Process 1 (pid 76591, parent 76590) has STARTED
+Process 1 received all STARTED messages
+Process 1 has DONE its work
+Process 1 received all DONE messages
+Process 3 (pid 76593, parent 76590) has STARTED
+Process 3 received all STARTED messages
+Process 3 has DONE its work
+Process 3 received all DONE messages
+Process 3 (pid 76705, parent 76702) has STARTED
+Process 3 received all STARTED messages
+Process 3 has DONE its work
+Process 3 received all DONE messages
+Process 1 (pid 76703, parent 76702) has STARTED
+Process 1 received all STARTED messages
+Process 1 has DONE its work
+Process 1 received all DONE messages
+Process 2 (pid 76704, parent 76702) has STARTED
+Process 2 received all STARTED messages
+Process 2 has DONE its work
+Process 2 received all DONE messages
+Process 2 (pid 76920, parent 76918) has STARTED
+Process 2 received all STARTED messages
+Process 2 has DONE its work
+Process 2 received all DONE messages
+Process 3 (pid 76921, parent 76918) has STARTED
+Process 3 received all STARTED messages
+Process 3 has DONE its work
+Process 3 received all DONE messages
+Process 1 (pid 76919, parent 76918) has STARTED
+Process 1 received all STARTED messages
+Process 1 has DONE its work
+Process 1 received all DONE messages
+Process 1 (pid 77242, parent 77241) has STARTED
+Process 1 received all STARTED messages
+Process 1 has DONE its work
+Process 1 received all DONE messages
+Process 2 (pid 77243, parent 77241) has STARTED
+Process 2 received all STARTED messages
+Process 2 has DONE its work
+Process 2 received all DONE messages
+Process 3 (pid 77244, parent 77241) has STARTED
+Process 3 received all STARTED messages
+Process 3 has DONE its work
+Process 3 received all DONE messages
+Process 1 (pid 77406, parent 77405) has STARTED
+Process 1 received all STARTED messages
+Process 1 has DONE its work
+Process 1 received all DONE messages
+Process 3 (pid 77408, parent 77405) has STARTED
+Process 3 received all STARTED messages
+Process 3 has DONE its work
+Process 3 received all DONE messages
+Process 2 (pid 77407, parent 77405) has STARTED
+Process 2 received all STARTED messages
+Process 2 has DONE its work
+Process 2 received all DONE messages
+Process 1 (pid 77949, parent 77948) has STARTED
+Process 1 received all STARTED messages
+Process 1 has DONE its work
+Process 1 received all DONE messages
+Process 1 (pid 78326, parent 78325) has STARTED
+Process 1 received all STARTED messages
+Process 1 has DONE its work
+Process 1 received all DONE messages
+Process 1 (pid 78556, parent 78555) has STARTED
+Process 1 received all STARTED messages
+Process 1 has DONE its work
+Process 1 received all DONE messages
+Process 2 (pid 78557, parent 78555) has STARTED
+Process 2 received all STARTED messages
+Process 2 has DONE its work
+Process 2 received all DONE messages
+Process 3 (pid 78558, parent 78555) has STARTED
+Process 3 received all STARTED messages
+Process 3 has DONE its work
+Process 3 received all DONE messages
+Process 1 (pid 78995, parent 78994) has STARTED
+Process 1 received all STARTED messages
+Process 1 has DONE its work
+Process 1 received all DONE messages
+Process 1 (pid 79117, parent 79116) has STARTED
+Process 1 received all STARTED messages
+Process 1 has DONE its work
+Process 1 received all DONE messages
+Process 2 (pid 79152, parent 79150) has STARTED
+Process 2 received all STARTED messages
+Process 2 has DONE its work
+Process 2 received all DONE messages
+Process 1 (pid 79151, parent 79150) has STARTED
+Process 1 received all STARTED messages
+Process 1 has DONE its work
+Process 1 received all DONE messages
+Process 1 (pid 79183, parent 79182) has STARTED
+Process 1 received all STARTED messages
+Process 1 has DONE its work
+Process 1 received all DONE messages
+Process 1 (pid 79295, parent 79294) has STARTED
+Process 1 received all STARTED messages
+Process 1 has DONE its work
+Process 1 received all DONE messages
+Process 2 (pid 79296, parent 79294) has STARTED
+Process 2 received all STARTED messages
+Process 2 has DONE its work
+Process 2 received all DONE messages
+Process 3 (pid 79297, parent 79294) has STARTED
+Process 3 received all STARTED messages
+Process 3 has DONE its work
+Process 3 received all DONE messages
+Process 1 (pid 79427, parent 79426) has STARTED
+Process 1 received all STARTED messages
+Process 1 has DONE its work
+Process 1 received all DONE messages
+Process 3 (pid 79429, parent 79426) has STARTED
+Process 3 received all STARTED messages
+Process 3 has DONE its work
+Process 3 received all DONE messages
+Process 1 (pid 83521, parent 83520) has STARTED
+Process 1 received all STARTED messages
+Process 1 has DONE its work
+Process 1 received all DONE messages
+Process 2 (pid 83522, parent 83520) has STARTED
+Process 2 received all STARTED messages
+Process 2 has DONE its work
+Process 2 received all DONE messages
+Process 1 (pid 83574, parent 83573) has STARTED
+Process 1 received all STARTED messages
+Process 1 has DONE its work
+Process 1 received all DONE messages
+Process 2 (pid 83575, parent 83573) has STARTED
+Process 2 received all STARTED messages
+Process 2 has DONE its work
+Process 2 received all DONE messages
+Process 2 (pid 84976, parent 84974) has STARTED
+Process 2 received all STARTED messages
+Process 2 has DONE its work
+Process 2 received all DONE messages
