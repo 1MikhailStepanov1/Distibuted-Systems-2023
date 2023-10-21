@@ -115,10 +115,27 @@ void close_pipes(void) {
 }
 
 
-int main(int argc, char * argv[])
-{
+int main(int argc, char * argv[]){
+    if (strcmp(argv[1], "-p") == 0) {
+        X = (local_id) atoi(argv[2]);
+        if (argc == 3 + X){
+            // create_log_files();
+            // create_pipes();
+            //fclose(pipes_log_file); // close pipes log to prevent duplicate write
+            int* balances = calloc(X, sizeof(int));
+            for (local_id i = 0; i < X; i++) {
+                balances[i] = atoi(argv[i]);
+            }
+            free(balances);
+        } else {
+            printf("Not enough arguments.");
+            return 1; 
+        }
+    } else {
+        printf("Usage: -p <value> <value> <value> ...");
+        return 1;
+    }
     //bank_robbery(parent_data);
     //print_history(all);
-
     return 0;
 }

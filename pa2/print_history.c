@@ -1,3 +1,9 @@
+#include "banking.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <memory.h>
+
 void print_history(const AllHistory * history)
 {
     if (history == NULL) {
