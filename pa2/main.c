@@ -6,18 +6,11 @@
 #include <unistd.h>
 #include "common.h"
 #include "ipc.h"
+#include "pipes.h"
 
-const char* log_pipe_open_fmt = "Pipe (%d; %d) created. read_fd=%d, write_fd=%d\n";
-
-/** Struct which represents descriptors of pipe */
-typedef struct fd_pair {
-    int fd[2];
-} fd_pair;
-
-fd_pair** pipes; // pipe matrix
-
-FILE* events_log_file;
-FILE* pipes_log_file;
+fd_pair **pipes; // pipe matrix
+FILE *events_log_file;
+FILE *pipes_log_file;
 local_id X;
 local_id cur_id = 0;
 
@@ -35,36 +28,12 @@ void create_log_files(void) {
     }
 }
 
-int send(void* self, local_id dst, const Message* msg) {
-    long bytes_written = write(((fd_pair*) self)[dst].fd[1], msg, sizeof(MessageHeader) + msg->s_header.s_payload_len);
-    return bytes_written != (sizeof(MessageHeader) + msg->s_header.s_payload_len);
-}
-
-int send_multicast(void* self, const Message* msg) {
-    printf("%s", msg->s_payload);
-    fprintf(events_log_file, "%s", msg->s_payload);
-    for (local_id i = 0; i <= X; i++) {
-        if (i != cur_id) {
-            if (send(((fd_pair**) self)[cur_id], i, msg) != 0) {
-                return -1;
-            }
-        }
-    }
-    return 0;
-}
-
-int receive(void* self, local_id from, Message* msg) {
-    long bytes_read = read(((fd_pair*) self)[from].fd[0], msg, sizeof(MessageHeader));
-    bytes_read += read(((fd_pair*) self)[from].fd[0], &msg->s_payload, msg->s_header.s_payload_len);
-    return bytes_read <= 0;
-}
-
 /** Receive messages from all processes */
-int receive_all(void* self, Message* msg) {
+int receive_all(void *self, Message *msg) {
     for (local_id i = 1; i <= X; i++) {
         if (i != cur_id) {
             memset(msg, 0, MAX_MESSAGE_LEN);
-            if (receive(((fd_pair**) self)[i], cur_id, msg) != 0) {
+            if (receive(((fd_pair **) self)[i], cur_id, msg) != 0) {
                 return -1;
             }
         }
@@ -72,67 +41,67 @@ int receive_all(void* self, Message* msg) {
     return 0;
 }
 
-/** Allocates space for pipe-matrix */
-void create_pipes(void) {
-    pipes = malloc(sizeof(fd_pair*) * (X + 1));
-    for (local_id i = 0; i <= X; i++) {
-        pipes[i] = malloc(sizeof(fd_pair) * (X + 1));
-        for (local_id j = 0; j <= X; j++) {
-            if (i != j) {
-                pipe(pipes[i][j].fd);
-                fprintf(pipes_log_file, log_pipe_open_fmt, i, j, pipes[i][j].fd[0], pipes[i][j].fd[1]);
-            }
-        }
+void task(bool isChild, uint8_t balance) {
+    close_unused_pipes();
+    Message *msg = calloc(MAX_MESSAGE_LEN, 1);
+
+    if (isChild) {
+        /*
+        init_message_header(msg, STARTED);
+        sprintf(msg->s_payload, log_started_fmt, cur_id, getpid(), getppid());
+        msg->s_header.s_payload_len = strlen(msg->s_payload);
+        send_multicast(pipes, msg);
+
+        receive_all(pipes, msg);
+        printf(log_received_all_started_fmt, cur_id);
+        fprintf(events_log_file, log_received_all_started_fmt, cur_id);
+        memset(msg, 0, MAX_MESSAGE_LEN);
+
+        init_message_header(msg, DONE);
+        sprintf(msg->s_payload, log_done_fmt, cur_id);
+        msg->s_header.s_payload_len = strlen(msg->s_payload);
+        send_multicast(pipes, msg);
+
+        receive_all(pipes, msg);
+        printf(log_received_all_done_fmt, cur_id);
+        fprintf(events_log_file, log_received_all_done_fmt, cur_id);
+         */
+    } else {
+        /* receive_all(pipes, msg);
+        receive_all(pipes, msg);
+        while (wait(NULL) > 0);
+         */
     }
+    free(msg);
+    fclose(events_log_file);
+    close_pipes();
 }
 
-/** Close descriptors of pipes that aren't used by the process */
-void close_unused_pipes(void) {
-    for (local_id i = 0; i <= X; i++) {
-        for (local_id j = 0; j <= X; j++) {
-            if (i != cur_id && j != cur_id && i != j) {
-                close(pipes[i][j].fd[0]);
-                close(pipes[i][j].fd[1]);
-            }
-        }
-        if (i != cur_id) {
-            close(pipes[cur_id][i].fd[0]);
-            close(pipes[i][cur_id].fd[1]);
-        }
-    }
-}
-
-/** Close all pipes after task is done and free space */
-void close_pipes(void) {
-    for (local_id i = 0; i <= X; i++) {
-        if (i != cur_id) {
-            close(pipes[cur_id][i].fd[1]);
-            close(pipes[i][cur_id].fd[0]);
-        }
-        free(pipes[i]);
-    }
-    free(pipes);
-}
-
-
-int main(int argc, char * argv[]){
+int main(int argc, char *argv[]) {
     if (strcmp(argv[1], "-p") == 0) {
         X = (local_id) atoi(argv[2]);
-        if (argc == 3 + X){
-            // create_log_files();
-            // create_pipes();
-            //fclose(pipes_log_file); // close pipes log to prevent duplicate write
-            int* balances = calloc(X, sizeof(int));
-            for (local_id i = 0; i < X; i++) {
-                balances[i] = atoi(argv[i]);
+        if (X < 2 || X > 10) {
+            printf("Value must be in range [1..10]!");
+            return 1;
+        }
+        if (argc == X + 3) {
+            create_log_files();
+            create_pipes();
+            fclose(pipes_log_file); // close pipes log to prevent duplicate write
+            for (local_id i = 1; i <= X; i++) {
+                if (fork() == 0) {
+                    cur_id = i;
+                    task(true, (uint8_t) atoi(argv[i + 2]));
+                    return 0;
+                }
             }
-            free(balances);
+            task(false, 0);
         } else {
-            printf("Not enough arguments.");
-            return 1; 
+            printf("Not enough balances specified (expected %d, got %d)!\n", X, argc - 3);
+            return 1;
         }
     } else {
-        printf("Usage: -p <value> <value> <value> ...");
+        printf("Usage: -p <X> <value 1> ... <value X>\n");
         return 1;
     }
     //bank_robbery(parent_data);

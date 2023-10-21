@@ -4,8 +4,12 @@
 #include <stdlib.h>
 #include <memory.h>
 
-void print_history(const AllHistory * history)
-{
+#include <memory.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include "banking.h"
+
+void print_history(const AllHistory *history) {
     if (history == NULL) {
         fprintf(stderr, "print_history: history is NULL!\n");
         exit(1);
@@ -24,8 +28,8 @@ void print_history(const AllHistory * history)
 
     for (int i = 0; i < history->s_history_len; ++i) {
         for (int j = 0; j < history->s_history[i].s_history_len; ++j) {
-            const BalanceState * change = &history->s_history[i].s_history[j];
-            int id = history->s_history[i].s_id;
+            const BalanceState *change = &history->s_history[i].s_history[j];
+            int id = (int) history->s_history[i].s_id;
             table[id][change->s_time].balance = change->s_balance;
             table[id][change->s_time].pending = change->s_balance_pending_in;
             if (max_time < change->s_time) {
@@ -49,16 +53,16 @@ void print_history(const AllHistory * history)
         for (int i = 1; i <= history->s_history_len; ++i) {
             sum += table[i][j].balance + table[i][j].pending;
         }
-        table[nrows-1][j].balance = sum;
-        table[nrows-1][j].pending = 0;
+        table[nrows - 1][j].balance = sum;
+        table[nrows - 1][j].pending = 0;
     }
-    
+
     // pretty print
     fflush(stderr);
     fflush(stdout);
 
-    const char * cell_format_pending = " %d (%d) ";
-    const char * cell_format = " %d ";
+    const char *cell_format_pending = " %d (%d) ";
+    const char *cell_format = " %d ";
 
     char buf[128];
     int max_cell_width = 0;
@@ -69,14 +73,14 @@ void print_history(const AllHistory * history)
             } else {
                 sprintf(buf, cell_format, table[i][j].balance);
             }
-            int width = strlen(buf);
+            int width = (int) strlen(buf);
             if (max_cell_width < width) {
                 max_cell_width = width;
             }
         }
     }
 
-    const char * const first_column_header = "Proc \\ time |";
+    const char *const first_column_header = "Proc \\ time |";
     const int first_column_width = strlen(first_column_header);
     const int underscrores = (first_column_width + 1) + (max_cell_width + 1) * (max_time + 1);
 
@@ -92,14 +96,14 @@ void print_history(const AllHistory * history)
     } else {
         printf("\nFull balance history for time range [0;%d], $balance:\n", max_time);
     }
-    printf(hline);
-    
+    printf("%s", hline);
+
     printf("%s ", first_column_header);
     for (int j = 0; j <= max_time; ++j) {
         printf("%*d |", max_cell_width - 1, j);
     }
     printf("\n");
-    printf(hline);
+    printf("%s", hline);
 
     for (int i = 1; i <= history->s_history_len; ++i) {
         printf("%11d | ", i);
@@ -112,13 +116,13 @@ void print_history(const AllHistory * history)
             printf("%*s|", max_cell_width, buf);
         }
         printf("\n");
-        printf(hline);
+        printf("%s", hline);
     }
 
     printf("      Total | ");
     for (int j = 0; j <= max_time; ++j) {
-        printf("%*d |", max_cell_width - 1, table[nrows-1][j].balance);
+        printf("%*d |", max_cell_width - 1, table[nrows - 1][j].balance);
     }
     printf("\n");
-    printf(hline);
+    printf("%s", hline);
 }
