@@ -9,6 +9,8 @@ extern FILE *pipes_log_file;
 extern local_id X;
 extern local_id cur_id;
 
+local_id last_sender_id;
+
 int send(void *self, local_id dst, const Message *msg) {
     long bytes_written = write(((fd_pair *) self)[dst].fd[1], msg, sizeof(MessageHeader) + msg->s_header.s_payload_len);
     return bytes_written != (sizeof(MessageHeader) + msg->s_header.s_payload_len);

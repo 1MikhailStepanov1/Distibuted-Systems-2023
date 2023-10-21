@@ -15,4 +15,11 @@ add_executable(pa2
         print_history.c
         pipes.c
         pipes.h
-        ipc.c)
+        ipc.c
+        bank_robbery.c)
+
+add_library(libruntime SHARED IMPORTED)
+
+set_target_properties(libruntime PROPERTIES IMPORTED_LOCATION ../lib64/libruntime.so)
+
+target_link_libraries(pa2 libruntime)

@@ -1,15 +1,9 @@
-#include "banking.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <memory.h>
-
 #include <memory.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "banking.h"
 
-void print_history(const AllHistory *history) {
+void print_history(const AllHistory* history) {
     if (history == NULL) {
         fprintf(stderr, "print_history: history is NULL!\n");
         exit(1);
@@ -28,7 +22,7 @@ void print_history(const AllHistory *history) {
 
     for (int i = 0; i < history->s_history_len; ++i) {
         for (int j = 0; j < history->s_history[i].s_history_len; ++j) {
-            const BalanceState *change = &history->s_history[i].s_history[j];
+            const BalanceState* change = &history->s_history[i].s_history[j];
             int id = (int) history->s_history[i].s_id;
             table[id][change->s_time].balance = change->s_balance;
             table[id][change->s_time].pending = change->s_balance_pending_in;
@@ -61,8 +55,8 @@ void print_history(const AllHistory *history) {
     fflush(stderr);
     fflush(stdout);
 
-    const char *cell_format_pending = " %d (%d) ";
-    const char *cell_format = " %d ";
+    const char* cell_format_pending = " %d (%d) ";
+    const char* cell_format = " %d ";
 
     char buf[128];
     int max_cell_width = 0;
@@ -80,7 +74,7 @@ void print_history(const AllHistory *history) {
         }
     }
 
-    const char *const first_column_header = "Proc \\ time |";
+    const char* const first_column_header = "Proc \\ time |";
     const int first_column_width = strlen(first_column_header);
     const int underscrores = (first_column_width + 1) + (max_cell_width + 1) * (max_time + 1);
 

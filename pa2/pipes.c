@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <malloc.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include "ipc.h"
 #include "pipes.h"
 
@@ -19,6 +20,8 @@ void create_pipes(void) {
         for (local_id j = 0; j <= X; j++) {
             if (i != j) {
                 pipe(pipes[i][j].fd);
+                fcntl(pipes[i][j].fd[0], F_SETFL, O_NONBLOCK);
+                fcntl(pipes[i][j].fd[1], F_SETFL, O_NONBLOCK);
                 fprintf(pipes_log_file, log_pipe_open_fmt, i, j, pipes[i][j].fd[0], pipes[i][j].fd[1]);
             }
         }
