@@ -38,6 +38,8 @@ int receive(void* self, local_id from, Message* msg) {
                 return 1; // if there are no messages, no need to wait
             }
             return -1;
+        } else if (bytes_read == 0) {
+            return 1; // if there are no messages, no need to wait
         }
         bytes_left -= bytes_read;
     }
