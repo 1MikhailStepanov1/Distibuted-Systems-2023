@@ -16,12 +16,7 @@ int send(void* self, local_id dst, const Message* msg) {
     ssize_t bytes_left = message_size;
 
     while (bytes_left) {
-        if (msg->s_header.s_type == BALANCE_HISTORY) {
-            printf("\t%d\n", cur_id);
-        }
         ssize_t bytes_written = write(((fd_pair*) self)[dst].fd[1], msg + (message_size - bytes_left), bytes_left);
-        //printf("%d %d\n", cur_id, bytes_written);
-
         if (bytes_written == -1) {
             if (errno == EAGAIN) {
                 continue;
@@ -60,7 +55,6 @@ int receive(void* self, local_id from, Message* msg) {
         }
         bytes_left -= bytes_read;
     }
-    //printf("%d: %s\n", cur_id, msg->s_payload);
 
     return 0;
 }
