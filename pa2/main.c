@@ -79,10 +79,16 @@ int receive_all(void* self, Message* msg, MessageType type, AllHistory* history)
     for (local_id i = 1; i <= X; i++) {
         if (i != cur_id) {
             memset(msg, 0, MAX_MESSAGE_LEN);
-            if (receive(((fd_pair**) self)[i], cur_id, msg) != 0) {
-                printf("Receive from all failed!");
-                exit(-1);
-            } else if (msg->s_header.s_type != type) {
+            while (1) {
+                int result = receive(((fd_pair**) self)[i], cur_id, msg);
+                if (result == -1) {
+                    printf("Receive from all failed!");
+                    exit(-1);
+                } else if (result == 0) {
+                    break;
+                }
+            }
+            if (msg->s_header.s_type != type) {
                 printf(received_wrong_type_fmt, msg->s_header.s_type);
                 exit(-1);
             }
@@ -90,9 +96,6 @@ int receive_all(void* self, Message* msg, MessageType type, AllHistory* history)
                 memcpy(&history->s_history[i - 1], msg->s_payload, sizeof(BalanceHistory));
             }
         }
-    }
-    if (cur_id) {
-        printf("%d\n", cur_id);
     }
     return 0;
 }
@@ -103,7 +106,7 @@ void client_task(void) {
     Message* msg = calloc(MAX_MESSAGE_LEN, 1);
 
     receive_all(pipes, msg, STARTED, NULL); // receiving STARTED messages
-    bank_robbery(msg, X);
+    //bank_robbery(msg, X);
     init_message_header(msg, STOP);
     send_multicast(pipes, msg); // sending STOP messages
     receive_all(pipes, msg, DONE, NULL); // receiving DONE messages
@@ -173,6 +176,7 @@ void account_task(void) {
     memcpy(msg->s_payload, &balance_history, sizeof(BalanceHistory));
     msg->s_header.s_payload_len = sizeof(BalanceHistory);
     send(&pipes[cur_id], PARENT_ID, msg);
+    printf("%d running %d\n", cur_id, running);
 
     free(msg);
     fclose(events_log_file);
