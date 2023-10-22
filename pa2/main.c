@@ -1,4 +1,3 @@
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,26 +32,6 @@ void create_log_files(void) {
         printf("Can't open file\"%s\"!", pipes_log);
         exit(-1);
     }
-}
-
-/** Receive messages from all processes */
-int receive_all(void* self, Message* msg, MessageType type, AllHistory* history) {
-    for (local_id i = 1; i <= X; i++) {
-        if (i != cur_id) {
-            memset(msg, 0, MAX_MESSAGE_LEN);
-            if (receive(((fd_pair**) self)[i], cur_id, msg) != 0) {
-                return -1;
-            }
-            if (history) {
-                // handle
-            }
-        }
-    }
-    return 0;
-}
-
-int receive_any(void * self, Message * msg) {
-    return 0;
 }
 
 /** Fill header of a message */
@@ -95,56 +74,106 @@ void transfer(void* parent_data, local_id src, local_id dst, balance_t amount) {
     }
 }
 
-/** Execute parent or child task */
-void task(bool isChild) {
-    close_unused_pipes();
-    Message* msg = calloc(MAX_MESSAGE_LEN, 1);
-
-    if (isChild) {
-        uint8_t running = X;
-        while (running) {
-            receive_any(pipes, msg);
-            if (msg->s_header.s_type == TRANSFER) {
-                TransferOrder* order = (TransferOrder*) msg->s_payload;
-                if (last_sender_id == PARENT_ID) {
-                    update_balance((balance_t) (get_balance_state().s_balance - order->s_amount));
-                    send(&pipes[cur_id], order->s_dst, msg);
-                    printf(log_transfer_out_fmt, get_physical_time(), cur_id, order->s_amount, order->s_dst);
-                    fprintf(events_log_file, log_transfer_out_fmt, get_physical_time(), cur_id, order->s_amount,
-                            order->s_dst);
-                } else {
-                    update_balance((balance_t) (get_balance_state().s_balance + order->s_amount));
-                    init_message_header(msg, ACK); // payload isn't touched, so pointer to order is valid
-                    send(&pipes[cur_id], PARENT_ID, msg);
-                    printf(log_transfer_in_fmt, get_physical_time(), cur_id, order->s_amount, order->s_src);
-                    fprintf(events_log_file, log_transfer_in_fmt, get_physical_time(), cur_id, order->s_amount,
-                            order->s_src);
-                }
-            } else if (msg->s_header.s_type == STOP || msg->s_header.s_type == DONE) {
-                running--;
-            } else {
+/** Receive messages from all processes */
+int receive_all(void* self, Message* msg, MessageType type, AllHistory* history) {
+    for (local_id i = 1; i <= X; i++) {
+        if (i != cur_id) {
+            memset(msg, 0, MAX_MESSAGE_LEN);
+            if (receive(((fd_pair**) self)[i], cur_id, msg) != 0) {
+                printf("Receive from all failed!");
+                exit(-1);
+            } else if (msg->s_header.s_type != type) {
                 printf(received_wrong_type_fmt, msg->s_header.s_type);
                 exit(-1);
             }
+            if (history) {
+                memcpy(&history->s_history[i - 1], msg->s_payload, sizeof(BalanceHistory));
+            }
         }
-
-        init_message_header(msg, BALANCE_HISTORY);
-        memcpy(msg->s_payload, &balance_history, sizeof(BalanceHistory));
-        msg->s_header.s_payload_len = sizeof(BalanceHistory);
-        send(&pipes[cur_id], PARENT_ID, msg);
-    } else {
-        receive_all(pipes, msg, STARTED, NULL); // receiving STARTED messages
-        bank_robbery(msg, X);
-        init_message_header(msg, STOP);
-        send_multicast(pipes, msg); // sending STOP messages
-        receive_all(pipes, msg, DONE, NULL); // receiving DONE messages
-
-        AllHistory* history = malloc(sizeof(AllHistory));
-        receive_all(pipes, msg, BALANCE_HISTORY, history); // receiving BALANCE_HISTORY messages
-        print_history(history);
-        free(history);
-        while (wait(NULL) > 0);
     }
+    if (cur_id) {
+        printf("%d\n", cur_id);
+    }
+    return 0;
+}
+
+/** Task of client (parent) */
+void client_task(void) {
+    close_unused_pipes();
+    Message* msg = calloc(MAX_MESSAGE_LEN, 1);
+
+    receive_all(pipes, msg, STARTED, NULL); // receiving STARTED messages
+    bank_robbery(msg, X);
+    init_message_header(msg, STOP);
+    send_multicast(pipes, msg); // sending STOP messages
+    receive_all(pipes, msg, DONE, NULL); // receiving DONE messages
+
+    AllHistory* history = calloc(1, sizeof(AllHistory));
+    history->s_history_len = X;
+    receive_all(pipes, msg, BALANCE_HISTORY, history); // receiving BALANCE_HISTORY messages
+    print_history(history);
+    free(history);
+
+    while (wait(NULL) > 0);
+
+    free(msg);
+    fclose(events_log_file);
+    close_pipes();
+}
+
+/** Task of account (child) */
+void account_task(void) {
+    close_unused_pipes();
+    Message* msg = calloc(MAX_MESSAGE_LEN, 1);
+
+    init_message_header(msg, STARTED);
+    sprintf(msg->s_payload, log_started_fmt, get_physical_time(), cur_id, getpid(), getppid(),
+            get_balance_state().s_balance);
+    msg->s_header.s_payload_len = strlen(msg->s_payload);
+    send_multicast(pipes, msg); // send STARTED to everyone
+
+    receive_all(pipes, msg, STARTED, NULL); // receive STARTED from everyone
+    printf(log_received_all_started_fmt, get_physical_time(), cur_id);
+    fprintf(events_log_file, log_received_all_started_fmt, get_physical_time(), cur_id);
+
+    uint8_t running = X;
+    while (running) {
+        receive_any(pipes, msg);
+        if (msg->s_header.s_type == TRANSFER) {
+            TransferOrder* order = (TransferOrder*) msg->s_payload;
+            if (last_sender_id == PARENT_ID) {
+                update_balance((balance_t) (get_balance_state().s_balance - order->s_amount));
+                send(&pipes[cur_id], order->s_dst, msg);
+                printf(log_transfer_out_fmt, get_physical_time(), cur_id, order->s_amount, order->s_dst);
+                fprintf(events_log_file, log_transfer_out_fmt, get_physical_time(), cur_id, order->s_amount,
+                        order->s_dst);
+            } else {
+                update_balance((balance_t) (get_balance_state().s_balance + order->s_amount));
+                init_message_header(msg, ACK); // payload isn't touched, so pointer to order is valid
+                send(&pipes[cur_id], PARENT_ID, msg);
+                printf(log_transfer_in_fmt, get_physical_time(), cur_id, order->s_amount, order->s_src);
+                fprintf(events_log_file, log_transfer_in_fmt, get_physical_time(), cur_id, order->s_amount,
+                        order->s_src);
+            }
+        } else if (msg->s_header.s_type == STOP) {
+            init_message_header(msg, DONE);
+            sprintf(msg->s_payload, log_done_fmt, get_physical_time(), cur_id, get_balance_state().s_balance);
+            msg->s_header.s_payload_len = strlen(msg->s_payload);
+            send_multicast(pipes, msg); // send DONE to everyone
+            running--;
+        } else if (msg->s_header.s_type == DONE) {
+            running--;
+        } else {
+            printf(received_wrong_type_fmt, msg->s_header.s_type);
+            exit(-1);
+        }
+    }
+
+    init_message_header(msg, BALANCE_HISTORY);
+    memcpy(msg->s_payload, &balance_history, sizeof(BalanceHistory));
+    msg->s_header.s_payload_len = sizeof(BalanceHistory);
+    send(&pipes[cur_id], PARENT_ID, msg);
+
     free(msg);
     fclose(events_log_file);
     close_pipes();
@@ -164,12 +193,13 @@ int main(int argc, char* argv[]) {
             for (local_id i = 1; i <= X; i++) {
                 if (fork() == 0) {
                     cur_id = i;
+                    balance_history.s_id = cur_id;
                     update_balance((balance_t) atoi(argv[i + 2]));
-                    task(true);
+                    account_task();
                     return 0;
                 }
             }
-            task(false);
+            client_task();
         } else {
             printf("Not enough balances specified (expected %d, got %d)!\n", X, argc - 3);
             return 1;

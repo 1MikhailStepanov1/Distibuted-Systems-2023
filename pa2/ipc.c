@@ -1,36 +1,89 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <errno.h>
+#include <stdlib.h>
 #include "pipes.h"
 #include "ipc.h"
 
-extern fd_pair **pipes;
-extern FILE *events_log_file;
-extern FILE *pipes_log_file;
+extern FILE* events_log_file;
 extern local_id X;
 extern local_id cur_id;
 
 local_id last_sender_id;
 
-int send(void *self, local_id dst, const Message *msg) {
-    long bytes_written = write(((fd_pair *) self)[dst].fd[1], msg, sizeof(MessageHeader) + msg->s_header.s_payload_len);
-    return bytes_written != (sizeof(MessageHeader) + msg->s_header.s_payload_len);
+int send(void* self, local_id dst, const Message* msg) {
+    size_t message_size = sizeof(MessageHeader) + msg->s_header.s_payload_len;
+    size_t bytes_left = message_size;
+    while (bytes_left) {
+        size_t bytes_written = write(((fd_pair*) self)[dst].fd[1], msg + (message_size - bytes_left), bytes_left);
+        if (bytes_written == -1) {
+            if (errno == EAGAIN) {
+                continue;
+            }
+            return -1;
+        }
+        bytes_left -= bytes_written;
+    }
+    return 0;
 }
 
-int receive(void *self, local_id from, Message *msg) {
-    long bytes_read = read(((fd_pair *) self)[from].fd[0], msg, sizeof(MessageHeader));
-    bytes_read += read(((fd_pair *) self)[from].fd[0], &msg->s_payload, msg->s_header.s_payload_len);
-    return bytes_read <= 0;
+int receive(void* self, local_id from, Message* msg) {
+    size_t message_size = sizeof(MessageHeader);
+    size_t bytes_left = message_size;
+    while (bytes_left) {
+        size_t bytes_read = read(((fd_pair*) self)[from].fd[0], msg + (message_size - bytes_left), bytes_left);
+        if (bytes_read == -1) {
+            if (errno == EAGAIN) {
+                continue;
+            }
+            return -1;
+        }
+        bytes_left -= bytes_read;
+    }
+
+    message_size = msg->s_header.s_payload_len;
+    bytes_left = message_size;
+    while (bytes_left) {
+        size_t bytes_read = read(((fd_pair*) self)[from].fd[0], &msg->s_payload + (message_size - bytes_left),
+                                 bytes_left);
+        if (bytes_read == -1) {
+            if (errno == EAGAIN) {
+                continue;
+            }
+            return -1;
+        }
+        bytes_left -= bytes_read;
+    }
+    printf("%d: %s\n", cur_id, msg->s_payload);
+
+    return 0;
 }
 
-int send_multicast(void *self, const Message *msg) {
+int send_multicast(void* self, const Message* msg) {
     printf("%s", msg->s_payload);
     fprintf(events_log_file, "%s", msg->s_payload);
     for (local_id i = 0; i <= X; i++) {
         if (i != cur_id) {
-            if (send(((fd_pair **) self)[cur_id], i, msg) != 0) {
+            if (send(((fd_pair**) self)[cur_id], i, msg) != 0) {
                 return -1;
             }
         }
     }
     return 0;
+}
+
+int receive_any(void* self, Message* msg) {
+    while (1) {
+        for (local_id i = 0; i <= X; i++) {
+            if (cur_id != i) {
+                if (receive(((fd_pair**) self)[i], cur_id, msg) == 0) {
+                    last_sender_id = i;
+                    return 0;
+                } else {
+                    printf("Receive from any failed!");
+                    exit(-1);
+                }
+            }
+        }
+    }
 }

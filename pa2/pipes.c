@@ -5,16 +5,15 @@
 #include "ipc.h"
 #include "pipes.h"
 
-const char *log_pipe_open_fmt = "Pipe (%d; %d) created. read_fd=%d, write_fd=%d\n";
+const char* log_pipe_open_fmt = "Pipe (%d; %d) created. read_fd=%d, write_fd=%d\n";
 
-extern fd_pair **pipes;
-extern FILE *events_log_file;
-extern FILE *pipes_log_file;
+extern fd_pair** pipes;
+extern FILE* pipes_log_file;
 extern local_id X;
 extern local_id cur_id;
 
 void create_pipes(void) {
-    pipes = malloc(sizeof(fd_pair *) * (X + 1));
+    pipes = malloc(sizeof(fd_pair*) * (X + 1));
     for (local_id i = 0; i <= X; i++) {
         pipes[i] = malloc(sizeof(fd_pair) * (X + 1));
         for (local_id j = 0; j <= X; j++) {
