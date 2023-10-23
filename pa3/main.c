@@ -8,6 +8,7 @@
 #include "banking.h"
 #include "pipes.h"
 #include "pa2345.h"
+#include "lamport.h"
 
 fd_pair** pipes; // pipe matrix
 FILE* events_log_file;
@@ -38,7 +39,7 @@ void create_log_files(void) {
 void init_message_header(Message* msg, MessageType type) {
     msg->s_header.s_magic = MESSAGE_MAGIC;
     msg->s_header.s_payload_len = 0;
-    msg->s_header.s_local_time = get_physical_time();
+    msg->s_header.s_local_time = inc_and_get_lamport_time();
     msg->s_header.s_type = type;
 }
 
@@ -47,7 +48,7 @@ BalanceState get_balance_state(void) {
 }
 
 void update_balance(balance_t balance) {
-    timestamp_t time = get_physical_time();
+    timestamp_t time = get_lamport_time();
     if (balance_history.s_history_len) {
         BalanceState state = get_balance_state();
         for (timestamp_t i = (timestamp_t) (state.s_time + 1); i < time; i++) {
@@ -94,6 +95,8 @@ int receive_all(void* self, MessageType type, AllHistory* history) {
                     printf("Receive from all failed!");
                     exit(-1);
                 } else if (result == 0) {
+                    sync_lamport_time(msg->s_header.s_local_time);
+                    inc_and_get_lamport_time();
                     break;
                 }
             }
@@ -142,37 +145,41 @@ void account_task(void) {
     Message* msg = calloc(MAX_MESSAGE_LEN, 1);
 
     init_message_header(msg, STARTED);
-    sprintf(msg->s_payload, log_started_fmt, get_physical_time(), cur_id, getpid(), getppid(),
+    sprintf(msg->s_payload, log_started_fmt, get_lamport_time(), cur_id, getpid(), getppid(),
             get_balance_state().s_balance);
     msg->s_header.s_payload_len = strlen(msg->s_payload);
     send_multicast(pipes, msg); // send STARTED to everyone
 
     receive_all(pipes, STARTED, NULL); // receive STARTED from everyone
-    printf(log_received_all_started_fmt, get_physical_time(), cur_id);
-    fprintf(events_log_file, log_received_all_started_fmt, get_physical_time(), cur_id);
+    printf(log_received_all_started_fmt, get_lamport_time(), cur_id);
+    fprintf(events_log_file, log_received_all_started_fmt, get_lamport_time(), cur_id);
 
     uint8_t running = X;
     while (running) {
         receive_any(pipes, msg);
+        sync_lamport_time(msg->s_header.s_local_time);
+        inc_and_get_lamport_time();
         if (msg->s_header.s_type == TRANSFER) {
             TransferOrder* order = (TransferOrder*) msg->s_payload;
             if (last_sender_id == PARENT_ID) {
+                msg->s_header.s_local_time = inc_and_get_lamport_time();
                 update_balance((balance_t) (get_balance_state().s_balance - order->s_amount));
+                balance_history.s_history[balance_history.s_history_len - 1].s_balance_pending_in = order->s_amount;
                 send(pipes[cur_id], order->s_dst, msg);
-                printf(log_transfer_out_fmt, get_physical_time(), cur_id, order->s_amount, order->s_dst);
-                fprintf(events_log_file, log_transfer_out_fmt, get_physical_time(), cur_id, order->s_amount,
+                printf(log_transfer_out_fmt, get_lamport_time(), cur_id, order->s_amount, order->s_dst);
+                fprintf(events_log_file, log_transfer_out_fmt, get_lamport_time(), cur_id, order->s_amount,
                         order->s_dst);
             } else {
                 update_balance((balance_t) (get_balance_state().s_balance + order->s_amount));
                 init_message_header(msg, ACK); // payload isn't touched, so pointer to order is valid
                 send(pipes[cur_id], PARENT_ID, msg);
-                printf(log_transfer_in_fmt, get_physical_time(), cur_id, order->s_amount, order->s_src);
-                fprintf(events_log_file, log_transfer_in_fmt, get_physical_time(), cur_id, order->s_amount,
+                printf(log_transfer_in_fmt, get_lamport_time(), cur_id, order->s_amount, order->s_src);
+                fprintf(events_log_file, log_transfer_in_fmt, get_lamport_time(), cur_id, order->s_amount,
                         order->s_src);
             }
         } else if (msg->s_header.s_type == STOP) {
             init_message_header(msg, DONE);
-            sprintf(msg->s_payload, log_done_fmt, get_physical_time(), cur_id, get_balance_state().s_balance);
+            sprintf(msg->s_payload, log_done_fmt, get_lamport_time(), cur_id, get_balance_state().s_balance);
             msg->s_header.s_payload_len = strlen(msg->s_payload);
             send_multicast(pipes, msg); // send DONE to everyone
             running--;

@@ -16,7 +16,9 @@ add_executable(pa3
         pipes.c
         pipes.h
         ipc.c
-        bank_robbery.c)
+        bank_robbery.c
+        lamport.c
+        lamport.h)
 
 add_library(libruntime SHARED IMPORTED)
 
