@@ -10,14 +10,16 @@
 #include "pipes.h"
 #include "pa2345.h"
 #include "lamport.h"
+#include "list.h"
 
 fd_pair** pipes; // pipe matrix
 FILE* events_log_file;
 FILE* pipes_log_file;
 local_id X = 0;
 local_id cur_id = 0;
+local_id active = 0;
 bool mutexl = false;
-timestamp_t* time_of_cs_requests;
+SortedRequestList request_list = {0};
 
 extern local_id last_sender_id;
 
@@ -73,25 +75,27 @@ int receive_all(void* self, MessageType type) {
 }
 
 /** Parse message header and possibly decrement number of working processes */
-void handle_request(MessageHeader header, uint8_t* running) {
+void handle_request(MessageHeader header, int8_t* not_replied_num, int8_t* active_num) {
     switch (header.s_type) {
         case CS_REQUEST:
             if (mutexl) {
-                time_of_cs_requests[last_sender_id - 1] = header.s_local_time;
+                add_to_list(&request_list, (Request) {header.s_local_time, last_sender_id});
             }
-            Message* msg = calloc(MAX_MESSAGE_LEN, 1);
-            init_message_header(msg, CS_REPLY);
-            send(pipes[cur_id], last_sender_id, msg);
-            free(msg);
+            Message* msg2 = calloc(MAX_MESSAGE_LEN, 1);
+            init_message_header(msg2, CS_REPLY);
+            send(pipes[cur_id], last_sender_id, msg2);
+            free(msg2);
             break;
         case CS_RELEASE:
             if (mutexl) {
-                time_of_cs_requests[last_sender_id - 1] = -1;
+                remove_from_list_by_pid(&request_list, last_sender_id);
             }
             break;
         case CS_REPLY:
+            (*not_replied_num)--;
+            break;
         case DONE:
-            (*running)--;
+            (*active_num)--;
             break;
         default:
             printf(received_wrong_type_fmt, header.s_type);
@@ -99,36 +103,32 @@ void handle_request(MessageHeader header, uint8_t* running) {
     }
 }
 
-bool cs_is_free(void) {
-    for (int i = 0; i < X; i++) {
-        if ((time_of_cs_requests[i] != -1) && (time_of_cs_requests[i] < time_of_cs_requests[cur_id - 1])) {
-            return false;
-        }
-    }
-    return true;
-}
-
 int request_cs(__attribute__((unused)) const void* self) {
+    /* Send CS_REQUEST to everyone */
     Message* msg = calloc(MAX_MESSAGE_LEN, 1);
     init_message_header(msg, CS_REQUEST);
     send_multicast(pipes, msg);
-    time_of_cs_requests[cur_id - 1] = get_lamport_time();
+    add_to_list(&request_list, (Request) {get_lamport_time(), cur_id});
 
-    uint8_t running = X;
-    while (running || !cs_is_free()) {
+    /* Receive CS_REPLY from everyone */
+    int8_t not_replied = X;
+    while (not_replied || request_list.data[0].pid != cur_id) {
         receive_any(pipes, msg);
         sync_lamport_time(msg->s_header.s_local_time);
         inc_and_get_lamport_time();
-        handle_request(msg->s_header, &running);
+        handle_request(msg->s_header, &not_replied, &active);
     }
+    free(msg);
     return 0;
 }
 
 int release_cs(__attribute__((unused)) const void* self) {
+    /* Send CS_RELEASE to everyone */
     Message* msg = calloc(MAX_MESSAGE_LEN, 1);
     init_message_header(msg, CS_RELEASE);
     send_multicast(pipes, msg);
-    time_of_cs_requests[cur_id - 1] = -1;
+    remove_from_list_by_pid(&request_list, cur_id);
+    free(msg);
     return 0;
 }
 
@@ -151,14 +151,12 @@ void child_task(void) {
     fprintf(events_log_file, log_received_all_started_fmt, get_lamport_time(), cur_id);
 
     /* Work */
-    char buffer[50];
     for (int i = 1; i <= cur_id * 5; i++) {
-        memset(buffer, 0, sizeof(buffer));
+        char buffer[50] = {0};
         sprintf(buffer, log_loop_operation_fmt, cur_id, i, cur_id * 5);
-
         if (mutexl) {
             request_cs(NULL);
-            //print(buffer);
+            print(buffer);
             release_cs(NULL);
         } else {
             print(buffer);
@@ -174,12 +172,11 @@ void child_task(void) {
     fprintf(events_log_file, "%s", msg->s_payload);
 
     /* Receive DONE from everyone */
-    uint8_t running = X - 1; // -1 because shouldn't count self
-    while (running) {
+    while (active - 1) {
         receive_any(pipes, msg);
         sync_lamport_time(msg->s_header.s_local_time);
         inc_and_get_lamport_time();
-        handle_request(msg->s_header, &running);
+        handle_request(msg->s_header, NULL, &active);
     }
     printf(log_received_all_done_fmt, get_lamport_time(), cur_id);
     fprintf(events_log_file, log_received_all_done_fmt, get_lamport_time(), cur_id);
@@ -198,12 +195,11 @@ void parent_task(void) {
 
     /* Receive DONE from everyone */
     Message* msg = calloc(MAX_MESSAGE_LEN, 1);
-    uint8_t running = X;
-    while (running) {
+    while (active) {
         receive_any(pipes, msg);
         sync_lamport_time(msg->s_header.s_local_time);
         inc_and_get_lamport_time();
-        handle_request(msg->s_header, &running);
+        handle_request(msg->s_header, NULL, &active);
     }
 
     while (wait(NULL) > 0);
@@ -217,14 +213,14 @@ int main(int argc, char* argv[]) {
     int mutexl_flag = 0;
     struct option long_options[] = {
             {"mutexl", no_argument, &mutexl_flag, 1},
-            {NULL, 0, NULL,                       0}
+            {NULL, 0, NULL, 0}
     };
 
     int opt;
     while ((opt = getopt_long(argc, argv, "p:", long_options, NULL)) != -1) {
         switch (opt) {
             case 'p':
-                X = (local_id) atoi(optarg);
+                active = X = (local_id) atoi(optarg);
                 if (X < 1 || X > 10) {
                     printf("Value must be in range [1..10]!\n");
                     return 1;
@@ -251,12 +247,7 @@ int main(int argc, char* argv[]) {
         if (fork() == 0) {
             cur_id = i;
             mutexl = mutexl_flag;
-            time_of_cs_requests = malloc(sizeof(timestamp_t) * X);
-            for (int j = 0; j < X; j++) {
-                time_of_cs_requests[j] = -1;
-            }
             child_task();
-            free(time_of_cs_requests);
             return 0;
         }
     }

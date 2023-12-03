@@ -17,6 +17,8 @@ add_executable(pa4
         lamport.c
         pa2345.h
         common.h
+        list.h
+        list.c
 )
 
 add_library(libruntime SHARED IMPORTED)
