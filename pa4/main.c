@@ -19,7 +19,7 @@ local_id X = 0;
 local_id cur_id = 0;
 local_id active = 0;
 bool mutexl = false;
-SortedRequestList request_list = {0};
+SortedRequestList* request_list;
 
 extern local_id last_sender_id;
 
@@ -79,7 +79,7 @@ void handle_request(MessageHeader header, int8_t* not_replied_num, int8_t* activ
     switch (header.s_type) {
         case CS_REQUEST:
             if (mutexl) {
-                add_to_list(&request_list, (Request) {header.s_local_time, last_sender_id});
+                add_to_list(request_list, (Request) {header.s_local_time, last_sender_id});
             }
             Message* msg2 = calloc(MAX_MESSAGE_LEN, 1);
             init_message_header(msg2, CS_REPLY);
@@ -88,7 +88,7 @@ void handle_request(MessageHeader header, int8_t* not_replied_num, int8_t* activ
             break;
         case CS_RELEASE:
             if (mutexl) {
-                remove_from_list_by_pid(&request_list, last_sender_id);
+                remove_from_list_by_pid(request_list, last_sender_id);
             }
             break;
         case CS_REPLY:
@@ -108,11 +108,11 @@ int request_cs(__attribute__((unused)) const void* self) {
     Message* msg = calloc(MAX_MESSAGE_LEN, 1);
     init_message_header(msg, CS_REQUEST);
     send_multicast(pipes, msg);
-    add_to_list(&request_list, (Request) {get_lamport_time(), cur_id});
+    add_to_list(request_list, (Request) {get_lamport_time(), cur_id});
 
     /* Receive CS_REPLY from everyone */
     int8_t not_replied = X;
-    while (not_replied || request_list.data[0].pid != cur_id) {
+    while (not_replied || request_list->data[0].pid != cur_id) {
         receive_any(pipes, msg);
         sync_lamport_time(msg->s_header.s_local_time);
         inc_and_get_lamport_time();
@@ -127,7 +127,7 @@ int release_cs(__attribute__((unused)) const void* self) {
     Message* msg = calloc(MAX_MESSAGE_LEN, 1);
     init_message_header(msg, CS_RELEASE);
     send_multicast(pipes, msg);
-    remove_from_list_by_pid(&request_list, cur_id);
+    remove_from_list_by_pid(request_list, cur_id);
     free(msg);
     return 0;
 }
@@ -240,6 +240,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    request_list = malloc(sizeof(SortedRequestList));
     create_log_files();
     create_pipes();
     fclose(pipes_log_file); // close pipes log to prevent duplicate write
@@ -252,6 +253,7 @@ int main(int argc, char* argv[]) {
         }
     }
     parent_task();
+    free(request_list);
 
     return 0;
 }
