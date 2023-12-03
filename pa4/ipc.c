@@ -69,8 +69,6 @@ int send_multicast(void* self, const Message* msg) {
             }
         }
     }
-    printf("%s", msg->s_payload);
-    fprintf(events_log_file, "%s", msg->s_payload);
     return 0;
 }
 

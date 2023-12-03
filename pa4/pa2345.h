@@ -45,8 +45,8 @@ static const char * const log_loop_operation_fmt =
 // Functions below must be implemented by students
 //------------------------------------------------------------------------------
 
-int request_cs(const void * self);
-int release_cs(const void * self);
+int request_cs(__attribute__((unused)) const void * self);
+int release_cs(__attribute__((unused)) const void * self);
 
 //------------------------------------------------------------------------------
 // Functions below are implemented by lector
