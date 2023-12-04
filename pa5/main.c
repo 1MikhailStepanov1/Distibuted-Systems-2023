@@ -10,7 +10,7 @@
 #include "pipes.h"
 #include "pa2345.h"
 #include "lamport.h"
-#include "list.h"
+#include "stack.h"
 
 fd_pair** pipes; // pipe matrix
 FILE* events_log_file;
@@ -19,7 +19,7 @@ local_id X = 0;
 local_id cur_id = 0;
 local_id active = 0;
 bool mutexl = false;
-SortedRequestList* request_list;
+PidStack* delayed_stack;
 
 extern local_id last_sender_id;
 
@@ -74,21 +74,28 @@ int receive_all(void* self, MessageType type) {
     return 0;
 }
 
+/** Check if process should reply to CS_REQUEST */
+bool should_reply(timestamp_t time_of_own_cs_request, timestamp_t time_of_not_own_cs_request) {
+    if (time_of_own_cs_request < time_of_not_own_cs_request) {
+        return false;
+    } else if (time_of_own_cs_request == time_of_not_own_cs_request) {
+        return cur_id > last_sender_id;
+    }
+    return true;
+}
+
 /** Parse message header and possibly decrement number of working processes */
-void handle_request(MessageHeader header, int8_t* not_replied_num, int8_t* active_num) {
+void handle_request(MessageHeader header, int8_t* not_replied_num, int8_t* active_num,
+                    const timestamp_t* time_of_own_cs_request) {
     switch (header.s_type) {
         case CS_REQUEST:
-            if (mutexl) {
-                add_to_list(request_list, (Request) {header.s_local_time, last_sender_id});
-            }
-            Message* msg2 = calloc(MAX_MESSAGE_LEN, 1);
-            init_message_header(msg2, CS_REPLY);
-            send(pipes[cur_id], last_sender_id, msg2);
-            free(msg2);
-            break;
-        case CS_RELEASE:
-            if (mutexl) {
-                remove_from_list_by_pid(request_list, last_sender_id);
+            if (!mutexl || !time_of_own_cs_request || should_reply(*time_of_own_cs_request, header.s_local_time)) {
+                Message* msg = calloc(MAX_MESSAGE_LEN, 1);
+                init_message_header(msg, CS_REPLY);
+                send(pipes[cur_id], last_sender_id, msg);
+                free(msg);
+            } else {
+                push_to_stack(delayed_stack, last_sender_id);
             }
             break;
         case CS_REPLY:
@@ -108,26 +115,27 @@ int request_cs(__attribute__((unused)) const void* self) {
     Message* msg = calloc(MAX_MESSAGE_LEN, 1);
     init_message_header(msg, CS_REQUEST);
     send_multicast(pipes, msg);
-    add_to_list(request_list, (Request) {get_lamport_time(), cur_id});
+    timestamp_t time_of_own_cs_request = get_lamport_time();
 
     /* Receive CS_REPLY from everyone */
     int8_t not_replied = X;
-    while (not_replied || request_list->data[0].pid != cur_id) {
+    while (not_replied) {
         receive_any(pipes, msg);
         sync_lamport_time(msg->s_header.s_local_time);
         inc_and_get_lamport_time();
-        handle_request(msg->s_header, &not_replied, &active);
+        handle_request(msg->s_header, &not_replied, &active, &time_of_own_cs_request);
     }
     free(msg);
     return 0;
 }
 
 int release_cs(__attribute__((unused)) const void* self) {
-    /* Send CS_RELEASE to everyone */
+    /* Send delayed CS_REPLYs */
     Message* msg = calloc(MAX_MESSAGE_LEN, 1);
-    init_message_header(msg, CS_RELEASE);
-    send_multicast(pipes, msg);
-    remove_from_list_by_pid(request_list, cur_id);
+    while (delayed_stack->size) {
+        init_message_header(msg, CS_REPLY);
+        send(pipes[cur_id], pop_from_stack(delayed_stack), msg);
+    }
     free(msg);
     return 0;
 }
@@ -176,7 +184,7 @@ void child_task(void) {
         receive_any(pipes, msg);
         sync_lamport_time(msg->s_header.s_local_time);
         inc_and_get_lamport_time();
-        handle_request(msg->s_header, NULL, &active);
+        handle_request(msg->s_header, NULL, &active, NULL);
     }
     printf(log_received_all_done_fmt, get_lamport_time(), cur_id);
     fprintf(events_log_file, log_received_all_done_fmt, get_lamport_time(), cur_id);
@@ -199,7 +207,7 @@ void parent_task(void) {
         receive_any(pipes, msg);
         sync_lamport_time(msg->s_header.s_local_time);
         inc_and_get_lamport_time();
-        handle_request(msg->s_header, NULL, &active);
+        handle_request(msg->s_header, NULL, &active, NULL);
     }
 
     while (wait(NULL) > 0);
@@ -240,7 +248,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    request_list = malloc(sizeof(SortedRequestList));
+    delayed_stack = malloc(sizeof(PidStack));
     create_log_files();
     create_pipes();
     fclose(pipes_log_file); // close pipes log to prevent duplicate write
@@ -253,7 +261,7 @@ int main(int argc, char* argv[]) {
         }
     }
     parent_task();
-    free(request_list);
+    free(delayed_stack);
 
     return 0;
 }
